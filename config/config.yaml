@@ -1,0 +1,29 @@
+icons:
+  cursor: '-> '
+  task_new: '[ ]'
+  task_in_progress: '[*]'
+  task_hold: '[-]'
+  task_done: '[+]'
+colors:
+  selected_line_color: '#cba6f7'
+  header_color: '#eba0ac'
+  footer_color: '#a6e3a1'
+  border_color: '#b4befe'
+  task_status_color_new: '#a6e3a1'
+  task_status_color_progress: '#a6e3a1'
+  task_status_color_hold: '#fab387'
+  task_status_color_done: '#7f849c'
+  task_topic_color_new: '#b4befe'
+  task_topic_color_in_progress: '#b4befe'
+  task_topic_color_hold: '#b4befe'
+  task_topic_color_done: '#b4befe'
+  task_text_color: '#cdd6f4'
+  task_date_color: '#7f849c'
+  task_duration_color: '#7f849c'
+  icon_new_color: '#cdd6f4'
+  icon_progress_color: '#cdd6f4'
+  icon_hold_color: '#cdd6f4'
+  icon_done_color: '#cdd6f4'
+object_type:
+  border_type: 'single' # rounded, double, thick, quadrant
+  selected_style_reversed: false

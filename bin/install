@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+mkdir -p "$HOME/.local/bin/"
+cp -i "../target/release/rust-todo" "$HOME/.local/bin/rust-todo"
