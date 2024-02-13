@@ -10,31 +10,39 @@ pub struct Icons {
     pub task_in_progress: String,
     pub task_hold: String,
     pub task_done: String,
+    pub topic_icon_left: String,
+    pub topic_icon_right: String,
+    pub sub_task_middle: String,
+    pub sub_task_end: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ObjectType {
     pub border_type: String,
-    pub selected_style_reversed: bool,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Colors {
-    pub selected_line_color: String,
+    pub bat_color_sheme: String,
     pub header_color: String,
     pub footer_color: String,
     pub border_color: String,
-    pub task_status_color_new: String,
-    pub task_status_color_progress: String,
-    pub task_status_color_hold: String,
-    pub task_status_color_done: String,
-    pub task_topic_color_new: String,
-    pub task_topic_color_in_progress: String,
-    pub task_topic_color_hold: String,
-    pub task_topic_color_done: String,
+
+    pub task_topic_color_new_fg: String,
+    pub task_topic_color_in_progress_fg: String,
+    pub task_topic_color_hold_fg: String,
+    pub task_topic_color_done_fg: String,
+
+    pub task_topic_color_new_bg: String,
+    pub task_topic_color_in_progress_bg: String,
+    pub task_topic_color_hold_bg: String,
+    pub task_topic_color_done_bg: String,
+
     pub task_text_color: String,
+    pub task_text_color_done: String,
     pub task_date_color: String,
     pub task_duration_color: String,
+
     pub icon_new_color: String,
     pub icon_progress_color: String,
     pub icon_hold_color: String,
@@ -57,21 +65,26 @@ impl Default for AppConfig {
                 task_in_progress: "[*]".to_string(),
                 task_hold: "[-]".to_string(),
                 task_done: "[+]".to_string(),
+                topic_icon_left: "".to_string(),
+                topic_icon_right: "".to_string(),
+                sub_task_middle: "|-".to_string(),
+                sub_task_end: "|-".to_string(),
             },
             colors: Colors {
-                selected_line_color: "#cba6f7".to_string(),
+                bat_color_sheme: "base16-256".to_string(),
                 header_color: "#b4befe".to_string(),
                 footer_color: "#a6e3a1".to_string(),
                 border_color: "#b4befe".to_string(),
-                task_status_color_new: "#cdd6f4".to_string(),
-                task_status_color_progress: "#a6e3a1".to_string(),
-                task_status_color_hold: "#fab387".to_string(),
-                task_status_color_done: "#7f849c".to_string(),
-                task_topic_color_new: "#b4befe".to_string(),
-                task_topic_color_in_progress: "#b4befe".to_string(),
-                task_topic_color_hold: "#b4befe".to_string(),
-                task_topic_color_done: "#b4befe".to_string(),
+                task_topic_color_new_fg: "#b4befe".to_string(),
+                task_topic_color_in_progress_fg: "#b4befe".to_string(),
+                task_topic_color_hold_fg: "#b4befe".to_string(),
+                task_topic_color_done_fg: "#b4befe".to_string(),
+                task_topic_color_new_bg: "#000000".to_string(),
+                task_topic_color_in_progress_bg: "#000000".to_string(),
+                task_topic_color_hold_bg: "#000000".to_string(),
+                task_topic_color_done_bg: "#000000".to_string(),
                 task_text_color: "#cdd6f4".to_string(),
+                task_text_color_done: "#cdd6f4".to_string(),
                 task_date_color: "#7f849c".to_string(),
                 task_duration_color: "#7f849c".to_string(),
                 icon_new_color: "#cdd6f4".to_string(),
@@ -81,7 +94,6 @@ impl Default for AppConfig {
             },
             object_type: ObjectType {
                 border_type: "single".to_string(),
-                selected_style_reversed: false,
             },
         }
     }

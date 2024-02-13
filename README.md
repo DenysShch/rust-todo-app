@@ -11,7 +11,8 @@
 
 ## Overview
 
-![demo](assets/rust-todo.gif)
+![demo](assets/sc1.png)
+![demo](assets/sc2.png)
 
 Welcome to the Rust Terminal Todo App! This is a simple command-line todo application with a user-friendly interface written in Rust. It is inspired by projects like [ gitui ](https://github.com/extrawurst/gitui) and [ lazygit ](https://github.com/jesseduffield/lazygit), providing a convenient way to manage your tasks right from the terminal.
 
@@ -23,7 +24,33 @@ Welcome to the Rust Terminal Todo App! This is a simple command-line todo applic
 
 - **Interactive UI**: Navigate through your tasks using an interactive UI that makes task management a breeze.
 
-- **Order**: by topic, status, date.
+- **Filter**: by status.
+
+- **Sub task** functionality.
+
+- **Comments**: Add, Remove, and Edit comments.
+
+- **Code highlights**
+
+## Key-maps
+
+| Keys        | Description        |
+| ----------- | ------------------ |
+| esc         | close popup        |
+| Tab         | change popup window|
+| C-s         | save               |
+| n           | new task           |
+| s           | new sub task       |
+| c           | change status      |
+| e           | edit task          |
+| E           | edit last comment  |
+| a           | add comment        |
+| D           | delete task        |
+| A           | delete last comment|
+| h           | horizontal view    |
+| v           | vertical view      |
+| ,           | scroll down        |
+| .           | scroll up          |
 
 ## Installation
 
@@ -64,49 +91,49 @@ Press `Alt + t` to open the 'Todo App,' and press `q` to return to the previous 
 The Rust Terminal Todo App supports configuration through a `$HOME/.config/todo/config.yaml` file. You can customize various settings, such as the appearance and behavior of the application, by modifying this file.
 Default configuration you can find in `config` folder.
 
-My personal configuration inspired by `Catppuccin Theme`:
+My personal configuration inspired by `Kanagawa Dragon`:
 
 ```yaml
+#kanagawa-dragon
 icons:
   cursor: '⤙ '
   task_new: ''
-  task_in_progress: ''
+  task_in_progress: ''
   task_hold: ''
   task_done: ''
+  topic_icon_left: '' #    
+  topic_icon_right: '' #   
+  sub_task_middle: '├─'
+  sub_task_end: '╰─'
 colors:
-  selected_line_color: '#b4befe'
-  header_color: '#b4befe'
-  footer_color: '#a6e3a1'
-  border_color: '#b4befe'
-  task_status_color_new: '#cdd6f4'
-  task_status_color_progress: '#a6e3a1'
-  task_status_color_hold: '#fab387'
-  task_status_color_done: '#7f849c'
-  task_topic_color_new: '#cdd6f4'
-  task_topic_color_in_progress: '#a6e3a1'
-  task_topic_color_hold: '#fab387'
-  task_topic_color_done: '#7f849c'
-  task_text_color: '#cdd6f4'
-  task_date_color: '#7f849c'
+  bat_color_sheme: 'base16-256'
+  header_color: '#717C7C'
+  footer_color: '#727169'
+  border_color: '#49443C'
+  task_topic_color_new_fg: '#C8C093'
+  task_topic_color_in_progress_fg: '#1F1F28'
+  task_topic_color_hold_fg: '#1F1F28'
+  task_topic_color_done_fg: '#C8C093'
+  task_topic_color_new_bg: '#49443C'
+  task_topic_color_in_progress_bg: '#76946A'
+  task_topic_color_hold_bg: '#DCA561'
+  task_topic_color_done_bg: '#2B3328'
+  task_text_color: '#DCD7BA'
+  task_text_color_done: '#49443C'
+  task_date_color: '#727169'
   task_duration_color: '#7f849c'
-  icon_new_color: '#cdd6f4'
-  icon_progress_color: '#a6e3a1'
-  icon_hold_color: '#fab387'
-  icon_done_color: '#7f849c'
+  icon_new_color: '#49443C'
+  icon_progress_color: '#76946A'
+  icon_hold_color: '#DCA561'
+  icon_done_color: '#2B3328'
 object_type:
   border_type: 'rounded' # rounded, double, thick, quadrant
-  selected_style_reversed: false
 ```
 
 Feel free to experiment with the configuration options to tailor the application to your preferences.
 
-## Future Plans
-
-If this project gains popularity, I plan to add more features and improvements based on user feedback. Possible future features include:
-
-- **Due Dates and Reminders**: Set due dates for tasks and receive reminders.
-- **Sync with Jira**
-
 Your feedback and suggestions are welcome! If you have ideas for new features or improvements, please open an issue on the GitHub repository.
 
-Thank you for using the Rust Terminal Todo App! Happy task managing!
+Thank you for using the Rust Terminal Todo App!
+
+Happy task managing!
