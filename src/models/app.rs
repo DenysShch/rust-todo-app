@@ -1,178 +1,93 @@
+use super::{
+    os::FileSystem,
+    task::{Status, Task},
+};
+use core::fmt;
 use ratatui::widgets::*;
 use std::fs;
+use tui_textarea::TextArea;
 
-use super::{os::FileSystem, task::Task};
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Filter {
+    New,
+    Hold,
+    InProgress,
+    Done,
+    NotDone,
+    All,
+}
 
+impl Filter {
+    pub fn iterator() -> impl Iterator<Item = Filter> {
+        [
+            Filter::New,
+            Filter::Hold,
+            Filter::InProgress,
+            Filter::Done,
+            Filter::NotDone,
+            Filter::All,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+impl fmt::Display for Filter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Filter::New => write!(f, "<n> by [New]"),
+            Filter::Hold => write!(f, "<h> by [Hold]"),
+            Filter::InProgress => write!(f, "<i> by [In Progress]"),
+            Filter::Done => write!(f, "<d> by [Done]"),
+            Filter::NotDone => write!(f, "<o> by [Not Done]"),
+            Filter::All => write!(f, "<a> by [All]"),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
 pub enum InputMode {
     Normal,
     Editing,
+    Modify,
+    Comment,
+    CommentEdit,
+    SubTask,
+    SubTaskModify,
+    Help,
+    FilterMode,
 }
 
-#[derive(PartialEq, Eq)]
-pub enum EnterMode {
-    Input,
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum PageLayout {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Copy, Clone)]
+pub enum InputArea {
     Topic,
-}
-pub struct InsertApp {
-    pub input: String,
-    pub topic: String,
-    pub topic_len: usize,
-    pub input_len: usize,
-    pub cursor_position_x: usize,
-    pub cursor_position_y: usize,
-    pub input_mode: InputMode,
-    pub enter_mode: EnterMode,
-    pub messages: Vec<String>,
-    pub edit: bool,
+    Task,
+    Description,
+    Comment,
 }
 
-impl Default for InsertApp {
-    fn default() -> InsertApp {
-        InsertApp {
-            input: String::new(),
-            topic: String::new(),
-            topic_len: 20,
-            input_len: 80,
-            cursor_position_x: 0,
-            cursor_position_y: 0,
-            input_mode: InputMode::Normal,
-            enter_mode: EnterMode::Topic,
-            messages: Vec::new(),
-            edit: false,
-        }
-    }
-}
-
-impl InsertApp {
-    pub fn move_cursor_left(&mut self) {
-        let cursor_moved_left = self.cursor_position_x.saturating_sub(1);
-        self.cursor_position_x = self.clamp_cursor(cursor_moved_left);
-    }
-
-    pub fn move_cursor_right(&mut self) {
-        let cursor_moved_right = self.cursor_position_x.saturating_add(1);
-        self.cursor_position_x = self.clamp_cursor(cursor_moved_right);
-    }
-
-    fn move_cursor_down(&mut self) {
-        let cursor_moved_down = self.cursor_position_y.saturating_add(1);
-        self.cursor_position_y = self.clamp_cursor(cursor_moved_down);
-    }
-
-    fn move_cursor_up(&mut self) {
-        let cursor_moved_up = self.cursor_position_y.saturating_sub(1);
-        self.cursor_position_y = self.clamp_cursor(cursor_moved_up);
-    }
-
-    pub fn enter_char(&mut self, new_char: char) {
-        if self.cursor_position_x % self.input_len == 0
-            && self.cursor_position_x != 0
-            && self.enter_mode == EnterMode::Input
-        {
-            self.input.insert(self.cursor_position_x, '\n');
-            self.move_cursor_right();
-            self.move_cursor_down();
-            self.input.insert(self.cursor_position_x, new_char);
-            self.move_cursor_right();
-        } else {
-            match self.enter_mode {
-                EnterMode::Input => self.input.insert(self.cursor_position_x, new_char),
-                EnterMode::Topic => {
-                    if self.topic.len() <= self.topic_len {
-                        self.topic.insert(self.cursor_position_x, new_char)
-                    }
-                }
-            };
-            self.move_cursor_right();
-        }
-    }
-
-    pub fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
-        match self.enter_mode {
-            EnterMode::Input => new_cursor_pos.clamp(0, self.input.len()),
-            EnterMode::Topic => new_cursor_pos.clamp(0, self.topic.len()),
-        }
-    }
-
-    pub fn reset_cursor_x(&mut self) {
-        self.cursor_position_x = 0;
-    }
-
-    pub fn reset_cursor_y(&mut self) {
-        self.cursor_position_y = 0;
-    }
-
-    pub fn return_caret(&mut self) -> usize {
-        if self.cursor_position_y == 0 {
-            return self.cursor_position_x;
-        }
-        return self.cursor_position_x.saturating_sub(1) % self.input_len;
-    }
-
-    pub fn switch_enter_mode(&mut self) {
-        match self.enter_mode {
-            EnterMode::Input => {
-                self.enter_mode = EnterMode::Topic;
-                self.move_cursor_right();
-                self.cursor_position_x = self.clamp_cursor(self.topic.len());
-                self.cursor_position_y = 0;
-            }
-            EnterMode::Topic => {
-                self.enter_mode = EnterMode::Input;
-                self.cursor_position_x = self.clamp_cursor(self.input.len());
-                if self.input.len() < self.input_len {
-                    self.cursor_position_y = 0;
-                } else {
-                    self.cursor_position_y = self.cursor_position_x / self.input_len;
-                }
-            }
-        }
-    }
-
-    pub fn delete_char(&mut self) {
-        let is_not_cursor_leftmost = self.cursor_position_x != 0;
-        if is_not_cursor_leftmost {
-            let current_index = self.cursor_position_x;
-            let from_left_to_current_index = current_index - 1;
-            match self.enter_mode {
-                EnterMode::Input => {
-                    let before_char_to_delete = self.input.chars().take(from_left_to_current_index);
-                    let after_char_to_delete = self.input.chars().skip(current_index);
-                    self.input = before_char_to_delete.chain(after_char_to_delete).collect();
-                }
-                EnterMode::Topic => {
-                    let before_char_to_delete = self.topic.chars().take(from_left_to_current_index);
-                    let after_char_to_delete = self.topic.chars().skip(current_index);
-                    self.topic = before_char_to_delete.chain(after_char_to_delete).collect();
-                }
-            }
-            if from_left_to_current_index % self.input_len == 0 {
-                self.move_cursor_up();
-            }
-            self.move_cursor_left();
-        }
-    }
-
-    pub fn add_new_line(&mut self) {
-        self.input.insert(self.cursor_position_x, '\n');
-        self.move_cursor_right();
-        self.move_cursor_down();
-    }
-
-    pub fn clear_popup(&mut self) {
-        self.enter_mode = EnterMode::Topic;
-        self.cursor_position_x = 0;
-        self.topic = String::new();
-        self.input = String::new();
+impl InputArea {
+    pub fn index(&self) -> usize {
+        *self as usize
     }
 }
 
 pub struct App {
-    pub state: TableState,
+    pub scroll_state: ScrollbarState,
+    pub scroll: usize,
+    pub state: ListState,
+    pub layout: PageLayout,
     pub items: Vec<Task>,
-    pub insert_popup: bool,
-    pub info_popup: bool,
-    pub insert_app: InsertApp,
+    pub sub_items: Vec<Task>,
+    pub input_mode: InputMode,
+    pub input_area: InputArea,
+    pub filter: Filter,
 }
 
 impl App {
@@ -184,14 +99,21 @@ impl App {
             match file_content {
                 Ok(s) => serde_json::from_str::<Vec<Task>>(&s).unwrap(),
                 Err(_) => vec![Task {
-                    message: "-//-".to_string(),
+                    id: 0,
                     topic: "main".to_string(),
-                    status: super::task::Status::New,
-                    create_timestamp: 1,
-                    create_time: "   -//-   ".to_string(),
-                    done_timestamp: None,
-                    done_time: None,
+                    status: Status::New,
+                    name: "Hello this is default task".to_string(),
+                    description: "Some description...".to_string(),
+                    creation_timestamp: 1,
+                    creation_date: "1".to_string(),
+                    status_change_timestamp: None,
+                    status_change_date: None,
                     duration: None,
+                    comments: Vec::new(),
+                    child_list: Vec::new(),
+                    parent_id: None,
+                    is_sub_task: false,
+                    display: true,
                 }],
             }
         };
@@ -210,27 +132,254 @@ impl App {
     pub fn new() -> App {
         let tasks = App::read();
         App {
-            state: TableState::default(),
+            scroll_state: ScrollbarState::default(),
+            scroll: 0,
+            state: {
+                if tasks.len() > 0 {
+                    let mut st = ListState::default();
+                    st.select(Some(0));
+                    st
+                } else {
+                    ListState::default()
+                }
+            },
+            layout: PageLayout::Vertical,
             items: tasks,
-            insert_popup: false,
-            info_popup: false,
-            insert_app: InsertApp::default(),
+            sub_items: Vec::new(),
+            input_mode: InputMode::Normal,
+            input_area: InputArea::Topic,
+            filter: Filter::All,
+        }
+    }
+
+    pub fn create(
+        &mut self,
+        topic: &TextArea,
+        name: &TextArea,
+        descripiton: &TextArea,
+        comment: &TextArea,
+    ) {
+        match self.input_mode {
+            InputMode::CommentEdit => match self.state.selected() {
+                Some(i) => {
+                    self.delete_comment();
+                    let _comment: String = comment.clone().into_lines().join("\n").to_string();
+                    self.items[i].create_comment(_comment);
+                    self.write();
+                    self.input_mode = InputMode::Normal;
+                    self.input_area = InputArea::Topic;
+                }
+                None => (),
+            },
+            InputMode::Comment => match self.state.selected() {
+                Some(i) => {
+                    let _comment: String = comment.clone().into_lines().join("\n").to_string();
+                    self.items[i].create_comment(_comment);
+                    self.write();
+                    self.input_mode = InputMode::Normal;
+                    self.input_area = InputArea::Topic;
+                }
+                None => (),
+            },
+            _ => {
+                let _name: String = name.clone().into_lines().concat().to_string();
+                if !_name.is_empty() {
+                    let _topic: String = topic.clone().into_lines().concat().to_string();
+                    let _description: String =
+                        descripiton.clone().into_lines().join("\n").to_string();
+                    let mut task =
+                        Task::create(Some(_topic), _name, Some(_description), None, None);
+
+                    match self.input_mode {
+                        InputMode::Modify | InputMode::SubTaskModify => match self.state.selected()
+                        {
+                            Some(s) => {
+                                let mut modify_task = self.items[s].clone();
+                                modify_task.topic = topic.clone().into_lines().concat().to_string();
+                                modify_task.name = name.clone().into_lines().concat().to_string();
+                                modify_task.description =
+                                    descripiton.clone().into_lines().join("\n").to_string();
+                                modify_task.child_list = self.items[s].child_list.clone();
+                                modify_task.is_sub_task = self.items[s].is_sub_task;
+                                self.items[s] = modify_task;
+                            }
+                            None => (),
+                        },
+                        InputMode::SubTask => match self.state.selected() {
+                            Some(s) => {
+                                let parent_index = {
+                                    match self.items[s].parent_id {
+                                        Some(p) => self.index_by_id(p).unwrap_or(s),
+                                        None => s,
+                                    }
+                                };
+                                let child_id = task.id;
+                                self.items[parent_index].child_list.push(child_id);
+                                task.topic = self.items[parent_index].topic.clone();
+                                task.is_sub_task = true;
+                                task.parent_id = Some(self.items[parent_index].id);
+                                self.items.insert(
+                                    parent_index + self.items[parent_index].child_list.len(),
+                                    task,
+                                );
+                            }
+                            None => (),
+                        },
+                        _ => {
+                            self.items.push(task);
+                        }
+                    }
+                    self.write();
+                    self.input_mode = InputMode::Normal;
+                    self.input_area = InputArea::Topic;
+                }
+            }
+        }
+    }
+
+    pub fn delete(&mut self) {
+        match self.state.selected() {
+            Some(i) => {
+                let task = self.items[i].clone();
+                if task.is_sub_task {
+                    let p_task = self
+                        .items
+                        .iter_mut()
+                        .enumerate()
+                        .filter(|(_idx, f)| f.id == task.parent_id.unwrap())
+                        .nth(0);
+                    match p_task {
+                        Some(item) => {
+                            let (idx, parent_task) = item;
+                            let mut clone_task = parent_task.clone();
+                            let mod_sub_task: Vec<_> = clone_task
+                                .child_list
+                                .iter()
+                                .filter(|id| *id != &task.id)
+                                .cloned()
+                                .collect();
+                            clone_task.child_list = mod_sub_task;
+                            self.items[idx] = clone_task;
+                        }
+                        None => (),
+                    }
+                    self.items.remove(i);
+                    self.write();
+                    self.next();
+                } else if task.child_list.len() > 0 {
+                    let new_items: Vec<_> = self
+                        .items
+                        .iter()
+                        .filter(|x| !task.child_list.contains(&x.id))
+                        .filter(|x| task.id != x.id)
+                        .cloned()
+                        .collect();
+                    self.items = new_items;
+                    self.write();
+                    self.next();
+                } else {
+                    self.items.remove(i);
+                    self.write();
+                    self.next();
+                }
+            }
+            None => (),
+        };
+    }
+
+    pub fn delete_comment(&mut self) {
+        match self.state.selected() {
+            Some(i) => {
+                self.items.get_mut(i).unwrap().comments.pop();
+                self.write();
+            }
+            None => (),
+        };
+    }
+
+    pub fn edit(&mut self) -> Option<(String, String, String, bool)> {
+        let data = match self.state.selected() {
+            Some(i) => Some((
+                self.items.get(i).unwrap().topic.clone(),
+                self.items.get(i).unwrap().name.clone(),
+                self.items.get(i).unwrap().description.clone(),
+                self.items.get(i).unwrap().is_sub_task.clone(),
+            )),
+            None => None,
+        };
+        return data;
+    }
+
+    pub fn edit_last_comment(&mut self) -> Option<String> {
+        let data = match self.state.selected() {
+            Some(i) => {
+                let comment = self.items.get(i).unwrap().comments.last();
+                if let Some(c) = comment {
+                    Some(c.text.clone())
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+        return data;
+    }
+
+    pub fn change_status(&mut self) {
+        match self.state.selected() {
+            Some(i) => {
+                let mut subtask_done_filter = true;
+                let task = self.items.get_mut(i).unwrap();
+                for item in self.sub_items.iter() {
+                    if item.status != Status::Done {
+                        subtask_done_filter = false;
+                    }
+                }
+                task.change_status(subtask_done_filter);
+            }
+            None => (),
+        };
+        self.write();
+    }
+
+    fn get_child_list(&mut self, some_item: Option<usize>) {
+        match some_item {
+            Some(i) => {
+                let child_list = self.items.get(i).unwrap().child_list.clone();
+                let sub_task: Vec<Task> = self
+                    .items
+                    .iter()
+                    .filter(|f| child_list.iter().any(|&item| item == f.id))
+                    .map(|x| x.clone())
+                    .collect();
+                self.sub_items = sub_task;
+            }
+            None => (),
         }
     }
 
     pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
+                if self.items.len() > 0 && i >= self.items.len() - 1 {
+                    Some(0)
                 } else {
-                    i + 1
+                    Some(i + 1)
                 }
             }
-            None => 0,
+            None => {
+                if self.items.len() != 0 {
+                    Some(0)
+                } else {
+                    None
+                }
+            }
         };
-        if self.items.len() != 0 {
-            self.state.select(Some(i));
+        if self.items.len() > 0 {
+            self.get_child_list(i);
+            self.state.select(i);
+        } else {
+            self.state.select(None);
         }
     }
 
@@ -238,99 +387,120 @@ impl App {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    Some(self.items.len() - 1)
                 } else {
-                    i - 1
+                    Some(i - 1)
                 }
             }
-            None => 0,
+            None => {
+                if self.items.len() != 0 {
+                    Some(0)
+                } else {
+                    None
+                }
+            }
         };
-        if self.items.len() != 0 {
-            self.state.select(Some(i));
+        self.get_child_list(i);
+        self.state.select(i);
+    }
+
+    pub fn change_input_area(&mut self) {
+        match self.input_area {
+            InputArea::Topic => self.input_area = InputArea::Task,
+            InputArea::Task => self.input_area = InputArea::Description,
+            InputArea::Description => self.input_area = InputArea::Topic,
+            _ => (),
         }
     }
 
-    pub fn create(&mut self) {
-        if !self.insert_app.input.is_empty() {
-            let task = Task::create(self.insert_app.input.clone(), self.insert_app.topic.clone());
-            self.items.push(task);
-            self.write();
+    fn index_by_id(&self, id: i64) -> Option<usize> {
+        for (idx, task) in self.items.iter().enumerate() {
+            if task.id == id {
+                return Some(idx);
+            }
         }
-        self.insert_app.input.clear();
-        self.insert_app.reset_cursor_x();
-        self.insert_app.reset_cursor_y();
+        return None;
     }
 
-    pub fn delete(&mut self) {
-        match self.state.selected() {
-            Some(i) => {
-                self.items.remove(i);
-                self.write();
-            }
-            None => (),
-        };
+    pub fn scroll_up(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
+        self.scroll_state = self.scroll_state.position(self.scroll)
     }
 
-    pub fn edit(&mut self) {
-        match self.state.selected() {
-            Some(i) => {
-                let topic = self.items.get(i).unwrap().topic.clone();
-                let message = self.items.get(i).unwrap().message.clone();
-                let len = message.len();
-                self.insert_app.enter_mode = EnterMode::Topic;
-                self.insert_app.cursor_position_x = self.insert_app.clamp_cursor(len);
-                self.insert_app.cursor_position_y = self.insert_app.cursor_position_x / len;
-                self.insert_app.topic = topic;
-                self.insert_app.input = message;
-            }
-            None => (),
-        };
+    pub fn scroll_down(&mut self) {
+        self.scroll = self.scroll.saturating_add(1);
+        self.scroll_state = self.scroll_state.position(self.scroll)
     }
 
-    pub fn modify(&mut self) {
-        match self.state.selected() {
-            Some(i) => {
-                let task =
-                    Task::create(self.insert_app.input.clone(), self.insert_app.topic.clone());
-                self.items[i] = task;
-                self.write();
-                self.insert_app.input.clear();
-                self.insert_app.reset_cursor_x();
-                self.insert_app.reset_cursor_y();
-            }
-            None => (),
-        }
-    }
+    pub fn filter_items(&mut self, new_filter: Filter) {
+        self.filter = new_filter;
+        self.input_mode = InputMode::Normal;
+        let new_items: Vec<Task> = self
+            .items
+            .iter()
+            .map(|x| {
+                let mut task = x.clone();
 
-    pub fn change_status(&mut self) {
-        match self.state.selected() {
-            Some(i) => {
-                let task = self.items.get_mut(i).unwrap();
-                task.change_status();
-            }
-            None => (),
-        };
-        self.write();
-    }
-
-    pub fn sort_by_start(&mut self) {
-        self.items.sort_by_key(|f| f.create_timestamp);
-        self.write();
-    }
-
-    pub fn sort_by_end(&mut self) {
-        self.items.sort_by_key(|f| f.done_timestamp);
-        self.write();
-    }
-
-    pub fn sort_by_status(&mut self) {
-        self.items.sort_by_key(|f| f.status);
-        self.write();
-    }
-
-    pub fn sort_by_topic(&mut self) {
-        self.items.sort_by_key(|f| f.topic.clone());
-        self.write();
+                match new_filter {
+                    Filter::New => {
+                        if task.status == Status::New {
+                            task.display = true
+                        } else {
+                            task.display = false
+                        }
+                    }
+                    Filter::Hold => {
+                        if task.status == Status::Hold {
+                            task.display = true
+                        } else {
+                            task.display = false
+                        }
+                    }
+                    Filter::InProgress => {
+                        if task.status == Status::InProgress {
+                            task.display = true
+                        } else {
+                            task.display = false
+                        }
+                    }
+                    Filter::Done => {
+                        if task.status == Status::Done {
+                            task.display = true
+                        } else {
+                            task.display = false
+                        }
+                    }
+                    Filter::NotDone => {
+                        if task.status != Status::Done {
+                            task.display = true
+                        } else {
+                            task.display = false
+                        }
+                    }
+                    Filter::All => task.display = true,
+                }
+                task
+            })
+            .map(|mut x| {
+                if x.child_list.len() > 0 {
+                    let child_list = x.child_list.clone();
+                    for child_id in child_list {
+                        let child_index = self.index_by_id(child_id);
+                        match child_index {
+                            Some(idx) => {
+                                let sub_task_display = self.items.get(idx).unwrap().display;
+                                if x.display == false && sub_task_display == true {
+                                    x.display = true;
+                                }
+                            }
+                            None => (),
+                        }
+                    }
+                }
+                x
+            })
+            .collect();
+        self.items = new_items;
     }
 }
 
